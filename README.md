@@ -2,6 +2,8 @@
 
 A lightweight, peer-to-peer JavaScript remote debugging tool built on [VDO.Ninja](https://vdo.ninja)'s WebRTC data channels.
 
+![image](https://github.com/user-attachments/assets/dce8be1b-d3ae-449d-bd19-e0e72d9d7f2e)
+
 ## Features
 
 - Execute JavaScript remotely on any connected browser
