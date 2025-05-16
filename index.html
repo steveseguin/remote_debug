@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Remote Browser Debug - VDO.Ninja</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            font-family: monospace;
+            background-color: #1e1e1e;
+            color: #eee;
+        }
+        .header {
+            background-color: #2d2d2d;
+            padding: 15px;
+            border-bottom: 2px solid #555;
+            position: relative;
+        }
+        .title {
+            margin: 0;
+            color: #66aaff;
+        }
+        .subtitle {
+            margin: 5px 0 15px 0;
+            color: #aaa;
+            font-style: italic;
+        }
+        .description {
+            line-height: 1.5;
+        }
+        .highlight {
+            color: #66ff66;
+            font-weight: bold;
+        }
+        .warning {
+            color: #ff9966;
+        }
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #444;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+		#container {
+			display: flex;
+			flex-direction: column;
+			height: 100vh;
+			overflow: hidden; /* Prevent scrolling at container level */
+		}
+		.main-content {
+			display: flex;
+			flex-direction: column;
+			flex: 1 1 auto;
+			padding: 10px;
+			overflow: hidden;
+			min-height: 0; /* Allow children to shrink */
+		}
+        .connection-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background-color: #2d2d2d;
+            padding: 10px;
+            border-bottom: 1px solid #444;
+        }
+        .share-link-container {
+            background-color: #333;
+            padding: 8px 10px;
+            border-left: 3px solid #66aaff;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .share-link-title {
+            font-weight: bold;
+            color: #66aaff;
+            white-space: nowrap;
+        }
+		.interface-container {
+			display: flex;
+			flex-grow: 1;
+			gap: 10px;
+			min-height: 0; /* Crucial for preventing flex items from expanding beyond parent */
+			max-height: 100%; /* Limit maximum height */
+			overflow: hidden; /* Prevent scrolling at this level */
+		}
+
+		.panel {
+			display: flex;
+			flex-direction: column;
+			width: 50%;
+			max-height: 100%; /* Limit maximum height */
+			min-height: 0; /* Allow children to shrink */
+			overflow: hidden; /* Prevent scrolling at this level */
+		}
+        .panel-header {
+            background-color: #2d2d2d;
+            padding: 8px 10px;
+            margin: 0;
+            border-bottom: 1px solid #444;
+        }
+        .code-input, .output-display {
+            flex-grow: 1;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 14px;
+            background-color: #1e1e1e;
+            color: #eee;
+            border: 1px solid #444;
+            resize: none;
+        }
+        .output-display {
+            overflow: auto;
+            white-space: pre-wrap;
+        }
+        .button-row {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+        .flex-grow {
+            flex-grow: 1;
+        }
+        button {
+            padding: 8px;
+            background-color: #444;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #555;
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            background-color: red;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 5px;
+        }
+        .output-item {
+            margin-bottom: 10px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+        }
+        .output-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .remote-source {
+            color: #ff9900;
+        }
+        .local-source {
+            color: #66ff66;
+        }
+        .system-source {
+            color: #6699ff;
+        }
+        .output-timestamp {
+            color: #999;
+        }
+        .output-code {
+            background-color: #333;
+            padding: 5px;
+            margin: 5px 0;
+            border-left: 3px solid #555;
+        }
+        .output-content {
+            white-space: pre-wrap;
+        }
+		.main-content {
+			display: flex;
+			flex-direction: column;
+			flex-grow: 1;
+			padding: 10px;
+			overflow: hidden; /* Prevent container from growing */
+		}
+
+		.output-display, .code-input {
+			flex-grow: 1;
+			padding: 10px;
+			font-family: monospace;
+			font-size: 14px;
+			background-color: #1e1e1e;
+			color: #eee;
+			border: 1px solid #444;
+			resize: none;
+			flex: 1 1 auto; /* Allow these to grow and shrink */
+			overflow: auto; /* Add scrollbars when content overflows */
+			min-height: 100px; /* Ensure minimal height for usability */
+		}
+
+		/* Update the connection-bar and share-link-container */
+		.connection-bar {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			background-color: #2d2d2d;
+			padding: 10px;
+			border-bottom: 1px solid #444;
+			flex-wrap: wrap; /* Allow wrapping on small screens */
+		}
+
+		.connection-controls {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			flex: 1;
+		}
+
+		.share-link-container {
+			background-color: #333;
+			padding: 8px 10px;
+			border-left: 3px solid #66aaff;
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			flex: 2;
+		}
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="headerSection" class="header">
+            <button id="closeHeaderBtn" class="close-btn">✕</button>
+            <h1 class="title">Remote Browser Debug</h1>
+            <h3 class="subtitle">Using VDO.Ninja P2P Data Channels</h3>
+            <div class="description">
+                <p>This tool allows you to remotely execute JavaScript code on a connected browser and see the results in real-time, 
+                perfect for debugging devices that are difficult to access directly.</p>
+                
+                <p><span class="highlight">How to use:</span></p>
+                <ol>
+                    <li>Enter a room name (or use the auto-generated one)</li>
+                    <li>Click "Connect" to join the room</li>
+                    <li>Copy and share the generated link with the device you want to debug</li>
+                    <li>Once connected (green indicator dot), type JavaScript in the editor</li>
+                    <li>Click "Execute Remote" to run code on the connected device</li>
+                </ol>
+                
+                <p><span class="warning">Note:</span> All code is executed using eval() - use with appropriate caution.</p>
+            </div>
+        </div>
+        
+		<div class="connection-bar">
+			<div class="connection-controls">
+				<label for="roomName">Room:</label>
+				<input id="roomName" type="text" style="flex-grow: 1; padding: 5px;">
+				<button id="connectBtn">Connect</button>
+				<span id="statusIndicator" class="status-indicator"></span>
+			</div>
+			
+			<div id="shareLinkContainer" class="share-link-container">
+				<div class="share-link-title">📤 SHARE:</div>
+				<input id="shareLink" type="text" readonly style="flex-grow: 1; padding: 5px;">
+				<button id="copyLinkBtn">Copy</button>
+			</div>
+		</div>
+
+        <div class="main-content">
+            <div class="interface-container">
+                <div class="panel">
+                    <h3 class="panel-header">JavaScript Input</h3>
+                    <textarea id="codeInput" class="code-input" placeholder="Enter JavaScript code to execute remotely..."></textarea>
+                    <div class="button-row">
+                        <button id="sendBtn" class="flex-grow">Execute Remote</button>
+                        <button id="executeLocalBtn" class="flex-grow">Execute Local</button>
+                        <button id="clearInputBtn">Clear</button>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <h3 class="panel-header">Console Output</h3>
+                    <div id="outputDisplay" class="output-display"></div>
+                    <div class="button-row">
+                        <button id="clearOutputBtn" class="flex-grow">Clear Output</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <iframe id="ninjaFrame" allow="camera;microphone;fullscreen;display-capture;autoplay;" style="display: none;"></iframe>
+
+    <script>
+        // Initialize variables
+        let connectedPeers = {};
+        let isHost = false;
+        const statusIndicator = document.getElementById('statusIndicator');
+        const roomNameInput = document.getElementById('roomName');
+        const connectBtn = document.getElementById('connectBtn');
+        const sendBtn = document.getElementById('sendBtn');
+        const executeLocalBtn = document.getElementById('executeLocalBtn');
+        const clearInputBtn = document.getElementById('clearInputBtn');
+        const clearOutputBtn = document.getElementById('clearOutputBtn');
+        const codeInputElem = document.getElementById('codeInput');
+        const outputDisplayElem = document.getElementById('outputDisplay');
+        const shareLinkContainer = document.getElementById('shareLinkContainer');
+        const shareLinkInput = document.getElementById('shareLink');
+        const copyLinkBtn = document.getElementById('copyLinkBtn');
+        const closeHeaderBtn = document.getElementById('closeHeaderBtn');
+        const headerSection = document.getElementById('headerSection');
+        const iframe = document.getElementById('ninjaFrame');
+        
+        // Generate random room name on load
+        roomNameInput.value = "remote-debug-" + (Math.floor(Math.random()*90000) + 10000);
+
+        // Make welcome message dismissable
+        closeHeaderBtn.addEventListener('click', () => {
+            headerSection.style.display = 'none';
+        });
+		
+		shareLinkContainer.style.display = 'flex';
+		shareLinkInput.value = 'Connect to generate share link';
+		shareLinkInput.disabled = true;
+		copyLinkBtn.disabled = true;
+
+
+        // Parse URL parameters
+        function getUrlParams() {
+            const params = {};
+            const queryString = window.location.search.substring(1);
+            const pairs = queryString.split('&');
+            
+            for (let i = 0; i < pairs.length; i++) {
+                const pair = pairs[i].split('=');
+                params[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1] || '');
+            }
+            
+            return params;
+        }
+
+        // Get room from URL parameters if available
+        const urlParams = getUrlParams();
+		if (urlParams.room) {
+			roomNameInput.value = urlParams.room;
+			// Auto-connect if room parameter is provided
+			setTimeout(() => {
+				if (connectBtn.textContent === 'Connect') {
+					connectBtn.click();
+				}
+			}, 500);
+		}
+		function updateShareableLink() {
+			const roomName = roomNameInput.value.trim();
+			
+			const currentUrl = new URL(window.location.href);
+			currentUrl.search = `?room=${encodeURIComponent(roomName)}`;
+			shareLinkInput.value = currentUrl.toString();
+			
+			addToOutput('System', `Share this link with the device you want to debug:\n${currentUrl.toString()}`);
+		}
+
+        // Connect to VDO.Ninja room
+        connectBtn.addEventListener('click', () => {
+			const roomName = roomNameInput.value.trim();
+			
+			if (roomName) {
+				if (connectBtn.textContent === 'Connect') {
+					// Connect logic
+					isHost = !connectedPeers || Object.keys(connectedPeers).length === 0;
+					
+					iframe.src = `https://vdo.ninja/?room=${roomName}&cleanoutput&dataonly&autostart`;
+					statusIndicator.style.backgroundColor = '#ffbf00'; // Yellow - connecting
+					connectBtn.textContent = 'Disconnect';
+					
+					addToOutput('System', `Connecting to room: ${roomName}...`);
+					
+					// Update URL with room parameter without reloading the page
+					const url = new URL(window.location.href);
+					url.searchParams.set('room', roomName);
+					window.history.pushState({}, '', url);
+					
+					// Update shareable link
+					updateShareableLink();
+					
+					// Focus and select the shareable link for easy copying
+					setTimeout(() => {
+						shareLinkInput.select();
+					}, 100);
+				} else {
+					// Disconnect logic
+					iframe.src = '';
+					statusIndicator.style.backgroundColor = 'red'; // Red - disconnected
+					connectBtn.textContent = 'Connect';
+					connectedPeers = {};
+					
+					addToOutput('System', 'Disconnected from room.');
+				}
+			} else {
+				alert('Please enter a valid room name');
+			}
+		});
+
+        // Copy link button
+        copyLinkBtn.addEventListener('click', () => {
+            shareLinkInput.select();
+            document.execCommand('copy');
+            copyLinkBtn.textContent = 'Copied!';
+            setTimeout(() => {
+                copyLinkBtn.textContent = 'Copy';
+            }, 2000);
+            
+            addToOutput('System', 'Share link copied to clipboard');
+        });
+
+        // Execute code remotely
+        sendBtn.addEventListener('click', () => {
+            const code = codeInputElem.value.trim();
+            if (code) {
+                if (Object.keys(connectedPeers).length > 0) {
+                    sendDataToAllPeers({
+                        type: 'execute',
+                        code: code,
+                        timestamp: Date.now()
+                    });
+                    addToOutput('Local', 'Code sent for remote execution');
+                } else {
+                    addToOutput('System', 'Error: No peers connected to send code to');
+                }
+            } else {
+                addToOutput('System', 'Error: No code to execute');
+            }
+        });
+
+        // Execute code locally
+        executeLocalBtn.addEventListener('click', () => {
+            const code = codeInputElem.value.trim();
+            if (code) {
+                executeCodeAndCapture(code);
+            } else {
+                addToOutput('System', 'Error: No code to execute');
+            }
+        });
+
+        // Clear buttons
+        clearInputBtn.addEventListener('click', () => {
+            codeInputElem.value = '';
+        });
+
+        clearOutputBtn.addEventListener('click', () => {
+            outputDisplayElem.innerHTML = '';
+        });
+
+        // Set up event listener for messages from iframe
+        const eventMethod = window.addEventListener ? "addEventListener" : "attachEvent";
+        const eventer = window[eventMethod];
+        const messageEvent = eventMethod === "attachEvent" ? "onmessage" : "message";
+
+        eventer(messageEvent, function(e) {
+            if (e.source != iframe.contentWindow) return;
+            
+            // Process connection events
+            if ("action" in e.data) {
+                handleConnectionEvents(e.data);
+            }
+            
+            // Handle received data
+            if ("dataReceived" in e.data) {
+                handleDataReceived(e.data.dataReceived, e.data.UUID);
+            }
+        }, false);
+
+        // Handle connection events
+		function handleConnectionEvents(data) {
+			if (data.action === "guest-connected" && data.streamID) {
+				connectedPeers[data.streamID] = data.value?.label || "Guest";
+				statusIndicator.style.backgroundColor = '#00ff00'; // Green - connected
+				connectBtn.textContent = 'Disconnect'; // Ensure button says disconnect
+				addToOutput('System', `Guest connected: ${connectedPeers[data.streamID]}`);
+				
+				// Remind about the share link when a guest connects
+				if (Object.keys(connectedPeers).length === 1) {
+					addToOutput('System', 'Connection established. You can now execute JavaScript remotely on the connected device.');
+				}
+			} 
+			else if (data.action === "push-connection" && data.value === false && data.streamID) {
+				addToOutput('System', `Guest disconnected: ${connectedPeers[data.streamID]}`);
+				delete connectedPeers[data.streamID];
+				
+				if (Object.keys(connectedPeers).length === 0) {
+					statusIndicator.style.backgroundColor = 'red'; // Red - disconnected
+				}
+			}
+		}
+
+        // Handle received data
+        function handleDataReceived(data, senderUUID) {
+            if (data.remoteDebug) {
+                const debugData = data.remoteDebug;
+                
+                if (debugData.type === 'execute') {
+                    // Execute code and send results back
+                    const result = executeCodeAndCapture(debugData.code);
+                    
+                    sendDataToPeer({
+                        type: 'result',
+                        result: result,
+                        originalCode: debugData.code,
+                        timestamp: Date.now()
+                    }, senderUUID);
+                }
+                else if (debugData.type === 'result') {
+                    // Display results
+                    addToOutput('Remote', debugData.result, debugData.originalCode);
+                }
+            }
+        }
+
+        // Send data to all peers
+        function sendDataToAllPeers(data) {
+            const payload = {
+                remoteDebug: data
+            };
+            
+            iframe.contentWindow.postMessage({
+                sendData: payload,
+                type: "pcs"
+            }, "*");
+        }
+
+        // Send data to specific peer
+        function sendDataToPeer(data, targetUUID) {
+            const payload = {
+                remoteDebug: data
+            };
+            
+            iframe.contentWindow.postMessage({
+                sendData: payload,
+                type: "pcs",
+                UUID: targetUUID
+            }, "*");
+        }
+
+        // Execute code and capture output
+        function executeCodeAndCapture(code) {
+            let outputResult = '';
+            let hasError = false;
+            
+            // Override console methods temporarily
+            const originalLog = console.log;
+            const originalError = console.error;
+            const originalWarn = console.warn;
+            const originalInfo = console.info;
+            
+            console.log = function() {
+                const args = Array.from(arguments);
+                outputResult += `${args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' ')}\n`;
+                originalLog.apply(console, arguments);
+            };
+            
+            console.error = function() {
+                const args = Array.from(arguments);
+                outputResult += `ERROR: ${args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' ')}\n`;
+                originalError.apply(console, arguments);
+            };
+            
+            console.warn = function() {
+                const args = Array.from(arguments);
+                outputResult += `WARN: ${args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' ')}\n`;
+                originalWarn.apply(console, arguments);
+            };
+            
+            console.info = function() {
+                const args = Array.from(arguments);
+                outputResult += `INFO: ${args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' ')}\n`;
+                originalInfo.apply(console, arguments);
+            };
+            
+            try {
+                // Execute code and capture return value
+                const returnValue = eval(code);
+                
+                // Add return value to output if not undefined
+                if (returnValue !== undefined) {
+                    outputResult += `\nReturn value: ${typeof returnValue === 'object' ? JSON.stringify(returnValue, null, 2) : returnValue}`;
+                }
+                
+                // Show the executed code in local output
+                addToOutput('Local', outputResult, code);
+            } catch (err) {
+                hasError = true;
+                outputResult += `\nERROR: ${err.name}: ${err.message}`;
+                addToOutput('Local', outputResult, code);
+            }
+            
+            // Restore original console methods
+            console.log = originalLog;
+            console.error = originalError;
+            console.warn = originalWarn;
+            console.info = originalInfo;
+            
+            return outputResult;
+        }
+
+        // Add message to output display
+        function addToOutput(source, content, code = null) {
+            const timestamp = new Date().toLocaleTimeString();
+            const sourceClass = source === 'Remote' ? 'remote-source' : (source === 'Local' ? 'local-source' : 'system-source');
+            
+            let html = `<div class="output-item">
+                <div class="output-header ${sourceClass}">
+                <span class="output-timestamp">[${timestamp}]</span>
+                <span class="output-source">${source}:</span>
+                </div>`;
+                
+            if (code) {
+                html += `<div class="output-code">Code: ${escapeHtml(code)}</div>`;
+            }
+            
+            html += `<div class="output-content">${escapeHtml(content)}</div></div>`;
+            
+            outputDisplayElem.innerHTML += html;
+            
+            // Scroll to bottom
+            outputDisplayElem.scrollTop = outputDisplayElem.scrollHeight;
+        }
+
+        // Helper function for escaping HTML
+        function escapeHtml(str) {
+            if (typeof str !== 'string') {
+                return str;
+            }
+            
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;')
+                .replace(/\n/g, '<br>')
+                .replace(/\s{2}/g, '&nbsp;&nbsp;');
+        }
+
+        // Starting state
+        statusIndicator.style.backgroundColor = 'red'; // Red - disconnected
+        addToOutput('System', 'Welcome to Remote Debug. Connect to a room to begin.');
+        if (urlParams.room) {
+            addToOutput('System', `Room parameter detected: ${urlParams.room}`);
+        }
+    </script>
+</body>
+</html>
