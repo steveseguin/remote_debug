@@ -356,6 +356,8 @@
 			const currentUrl = new URL(window.location.href);
 			currentUrl.search = `?room=${encodeURIComponent(roomName)}`;
 			shareLinkInput.value = currentUrl.toString();
+			shareLinkInput.disabled = false;
+			copyLinkBtn.disabled = false;
 			
 			addToOutput('System', `Share this link with the device you want to debug:\n${currentUrl.toString()}`);
 		}
@@ -393,6 +395,8 @@
 					statusIndicator.style.backgroundColor = 'red'; // Red - disconnected
 					connectBtn.textContent = 'Connect';
 					connectedPeers = {};
+					shareLinkInput.disabled = true;
+					copyLinkBtn.disabled = true;
 					
 					addToOutput('System', 'Disconnected from room.');
 				}
@@ -650,3 +654,4 @@
     </script>
 </body>
 </html>
+
