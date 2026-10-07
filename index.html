@@ -541,6 +541,23 @@
             }, "*");
         }
 
+        // Keep output formatting from interrupting the code being inspected.
+        function formatOutputValue(value) {
+            if (value === undefined) return '';
+            try {
+                if (typeof value === 'object') {
+                    return JSON.stringify(value, null, 2);
+                }
+                return String(value);
+            } catch (err) {
+                try {
+                    return String(value);
+                } catch (err) {
+                    return '[Unserializable value]';
+                }
+            }
+        }
+
         // Execute code and capture output
         function executeCodeAndCapture(code) {
             let outputResult = '';
@@ -554,25 +571,25 @@
             
             console.log = function() {
                 const args = Array.from(arguments);
-                outputResult += `${args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' ')}\n`;
+                outputResult += `${args.map(formatOutputValue).join(' ')}\n`;
                 originalLog.apply(console, arguments);
             };
             
             console.error = function() {
                 const args = Array.from(arguments);
-                outputResult += `ERROR: ${args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' ')}\n`;
+                outputResult += `ERROR: ${args.map(formatOutputValue).join(' ')}\n`;
                 originalError.apply(console, arguments);
             };
             
             console.warn = function() {
                 const args = Array.from(arguments);
-                outputResult += `WARN: ${args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' ')}\n`;
+                outputResult += `WARN: ${args.map(formatOutputValue).join(' ')}\n`;
                 originalWarn.apply(console, arguments);
             };
             
             console.info = function() {
                 const args = Array.from(arguments);
-                outputResult += `INFO: ${args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg).join(' ')}\n`;
+                outputResult += `INFO: ${args.map(formatOutputValue).join(' ')}\n`;
                 originalInfo.apply(console, arguments);
             };
             
@@ -582,7 +599,7 @@
                 
                 // Add return value to output if not undefined
                 if (returnValue !== undefined) {
-                    outputResult += `\nReturn value: ${typeof returnValue === 'object' ? JSON.stringify(returnValue, null, 2) : returnValue}`;
+                    outputResult += `\nReturn value: ${formatOutputValue(returnValue)}`;
                 }
                 
                 // Show the executed code in local output
